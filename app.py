@@ -1,52 +1,78 @@
 import streamlit as st
+import tensorflow as tf
+from PIL import Image, ImageOps
+import numpy as np
 
-# 1. 페이지 기본 설정 (가장 먼저 와야 합니다)
-st.set_page_config(page_title="나의 MBTI 직업 찾기", page_icon="🧭", layout="centered")
+# 🎈 귀여운 페이지 기본 설정
+st.set_page_config(page_title="내 기분 알아맞히기 ✨", page_icon="🧸", layout="centered")
 
-# 2. 헤더 및 소개말
-st.title("🧭 나의 MBTI 직업 찾기 🚀")
-st.subheader("안녕! 나는 너의 꿈을 응원하는 AI 상담 쌤이야. 나랑 같이 너에게 딱 맞는 직업을 찾아볼까? 😊")
-st.write("아래에서 너의 MBTI를 선택해 주면, 너의 성향에 잘 어울리는 멋진 직업 3가지를 추천해 줄게! 💖")
+# 🎨 제목과 설명
+st.title("🧸 나의 기분은 어떨까요? ✨")
+st.write("지금 당신의 기분을 인공지능이 맞춰볼게요! 얼굴이 나온 사진을 올려주세요. 📸")
 
-# 3. MBTI 데이터 (16가지 유형과 추천 직업 3가지, 짧은 응원 메시지)
-mbti_jobs = {
-    "ISTJ": {"jobs": ["📊 공인회계사", "💻 데이터 분석가", "🏛️ 공무원"], "desc": "꼼꼼하고 책임감이 강한 너! 정확하고 체계적인 일이 잘 어울려요."},
-    "ISFJ": {"jobs": ["🏥 간호사", "🏫 초등학교 교사", "🤝 사회복지사"], "desc": "따뜻하고 배려심 넘치는 너! 사람들을 돕고 안정감을 주는 일이 딱이에요."},
-    "INFJ": {"jobs": ["🛋️ 심리상담가", "✍️ 작가", "🎨 아트 디렉터"], "desc": "깊은 통찰력과 따뜻한 마음을 가진 너! 사람들의 마음을 치유하거나 영감을 주는 일을 추천해요."},
-    "INTJ": {"jobs": ["⚙️ 소프트웨어 개발자", "🔬 과학자", "📈 경영 컨설턴트"], "desc": "분석적이고 전략적인 너! 복잡한 문제를 해결하고 미래를 설계하는 일이 멋지게 어울려요."},
-    "ISTP": {"jobs": ["🛠️ 기계 공학자", "✈️ 파일럿", "🚑 응급구조사"], "desc": "상황 판단이 빠르고 손재주가 좋은 너! 실용적이고 활동적인 직업이 좋아요."},
-    "ISFP": {"jobs": ["🎨 그래픽 디자이너", "💆 물리치료사", "👗 패션 디자이너"], "desc": "감수성이 풍부하고 예술적인 너! 자유롭게 너의 감각을 표현할 수 있는 일을 찾아봐요."},
-    "INFP": {"jobs": ["📖 작가 (웹소설/에세이)", "🎨 일러스트레이터", "🌍 NGO 활동가"], "desc": "이상적이고 진정성을 중요하게 생각하는 너! 너만의 가치를 세상에 전하는 일이 어울려요."},
-    "INTP": {"jobs": ["💻 프로그래머", "🔭 천문학자", "🎓 대학교수"], "desc": "호기심 많고 논리적인 너! 끊임없이 탐구하고 새로운 지식을 발견하는 일을 추천해요."},
-    "ESTP": {"jobs": ["🚓 경찰관", "🚒 소방관", "🏅 스포츠 에이전트"], "desc": "에너지 넘치고 적응력이 뛰어난 너! 스릴 있고 역동적인 환경에서 빛을 발할 거예요."},
-    "ESFP": {"jobs": ["🎬 배우/크리에이터", "🎉 이벤트 기획자", "✈️ 승무원"], "desc": "사교적이고 긍정적인 너! 사람들과 함께 어울리며 즐거움을 주는 일이 최고예요."},
-    "ENFP": {"jobs": ["📹 인기 유튜버", "💡 마케터", "✈️ 여행 가이드"], "desc": "열정적이고 상상력이 풍부한 너! 틀에 얽매이지 않고 창의력을 발휘하는 일을 해봐요."},
-    "ENTP": {"jobs": ["💡 발명가", "⚖️ 변호사", "🚀 스타트업 창업가"], "desc": "도전적이고 아이디어가 넘치는 너! 새로운 길을 개척하고 설득하는 일이 잘 어울려요."},
-    "ESTJ": {"jobs": ["📋 프로젝트 매니저", "🏢 경영 관리자", "👮 경찰 간부"], "desc": "리더십 있고 체계적인 너! 조직을 이끌고 목표를 달성하는 일에서 큰 능력을 발휘할 거예요."},
-    "ESFJ": {"jobs": ["👶 유치원 교사", "🏨 호텔 지배인", "🏥 의료 코디네이터"], "desc": "친절하고 협동심이 강한 너! 사람들과 소통하며 조화를 이루는 일이 딱이에요."},
-    "ENFJ": {"jobs": ["👩‍🏫 중고등학교 교사", "🎤 PR 전문가", "🌍 국제기구 종사자"], "desc": "카리스마 있고 사람들을 돕기 좋아하는 너! 타인의 성장을 돕고 이끄는 멋진 리더가 될 수 있어요."},
-    "ENTJ": {"jobs": ["👔 기업 CEO", "📊 경영 컨설턴트", "📈 투자 분석가"], "desc": "단호하고 추진력이 뛰어난 너! 큰 그림을 그리고 비전을 실현하는 일이 어울려요."}
-}
+# 🛠️ 모델 로드 함수 (캐싱을 통해 속도 향상)
+@st.cache_resource
+def load_model():
+    # Teachable Machine에서 다운받은 모델 로드
+    model = tf.keras.models.load_model("keras_model.h5", compile=False)
+    # 라벨 파일 로드
+    with open("labels.txt", "r", encoding="utf-8") as f:
+        labels = f.readlines()
+    return model, labels
 
-# 4. MBTI 선택 박스
-mbti_list = list(mbti_jobs.keys())
-selected_mbti = st.selectbox("👉 너의 MBTI를 골라줘!", ["선택하세요"] + mbti_list)
+model, labels = load_model()
 
-# 5. 결과 출력
-if selected_mbti != "선택하세요":
-    st.write("---")
-    st.success(f"짜잔! 🎉 **{selected_mbti}** 친구를 위한 추천 직업이야!")
+# 🖼️ 이미지 업로드 버튼
+uploaded_file = st.file_uploader("사진을 여기에 쏙 넣어주세요! (jpg, png, jpeg)", type=["jpg", "png", "jpeg"])
+
+if uploaded_file is not None:
+    # 업로드된 이미지 화면에 예쁘게 보여주기
+    image = Image.open(uploaded_file).convert('RGB')
+    st.image(image, caption="업로드된 사진 찰칵! 📷", use_column_width=True)
     
-    # 쌤의 한마디 (info 박스로 강조)
-    st.info(f"💡 **상담 쌤의 한마디:** {mbti_jobs[selected_mbti]['desc']}")
+    st.write("인공지능이 열심히 기분을 분석하고 있어요... 🔍✨")
     
-    # 직업 3가지 출력
-    st.write("### ✨ 추천 직업 BEST 3")
-    for i, job in enumerate(mbti_jobs[selected_mbti]['jobs']):
-        st.markdown(f"**{i+1}. {job}**")
+    # ⚙️ Teachable Machine 형식에 맞게 이미지 전처리
+    size = (224, 224)
+    image_resized = ImageOps.fit(image, size, Image.Resampling.LANCZOS)
+    image_array = np.asarray(image_resized)
+    
+    # 이미지를 정규화 (-1 ~ 1 사이의 값으로 변환)
+    normalized_image_array = (image_array.astype(np.float32) / 127.5) - 1
+    
+    # 모델 예측을 위해 배열 형태 변경 (1, 224, 224, 3)
+    data = np.ndarray(shape=(1, 224, 224, 3), dtype=np.float32)
+    data[0] = normalized_image_array
+    
+    # 🚀 모델 예측
+    prediction = model.predict(data)
+    index = np.argmax(prediction)
+    class_name = labels[index].strip()
+    confidence_score = prediction[0][index]
+    
+    # 클래스 이름에서 숫자 제거 (예: "0 웃음" -> "웃음")
+    # 라벨 형식이 어떻게 되어있든 텍스트만 깔끔하게 빼옵니다.
+    if " " in class_name:
+        clean_label = class_name.split(" ", 1)[1]
+    else:
+        clean_label = class_name
+
+    # 🎀 결과 화면 출력
+    st.divider() # 귀여운 구분선
+    
+    if "웃음" in clean_label:
+        st.success(f"### 분석 결과: 활짝 웃는 얼굴이네요! 😊")
+        st.write(f"정확도: {confidence_score:.0%}")
+        st.write("당신의 예쁜 미소를 보니 저도 기분이 좋아져요! 🌻")
+        st.balloons() # 풍선 애니메이션 효과
         
-    # 축하 효과 (풍선 애니메이션)
-    st.balloons()
-    
-    st.write("---")
-    st.caption("이 결과는 참고용일 뿐이야! 너의 무한한 가능성을 쌤이 항상 응원할게. 💪 언제든 또 놀러와!")
+    elif "슬픔" in clean_label:
+        st.info(f"### 분석 결과: 조금 슬퍼 보여요... 😢")
+        st.write(f"정확도: {confidence_score:.0%}")
+        st.write("무슨 일인지는 몰라도, 다 괜찮아질 거예요. 토닥토닥 ☁️💙")
+        st.snow() # 눈 내리는 애니메이션 효과 (감성적인 느낌)
+        
+    else:
+        # 혹시 다른 라벨이 있을 경우
+        st.write(f"### 분석 결과: {clean_label} 🧐")
+        st.write(f"정확도: {confidence_score:.0%}")
